@@ -1,0 +1,12 @@
+package com.tarek.OAuth2_Internal.repository;
+
+import com.tarek.OAuth2_Internal.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    Optional<User> findByProviderAndProviderSubject(String provider, String providerSubject);
+
+}
