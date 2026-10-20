@@ -1,7 +1,9 @@
 package com.tarek.OAuth2_Internal.config;
 
+import com.tarek.OAuth2_Internal.service.CustomOIDCService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -9,13 +11,19 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, CustomOIDCService customOIDCService) throws Exception{
 
         httpSecurity
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
-                );
+                )
+                .httpBasic(Customizer.withDefaults())
+                .oauth2Login(oauth2-> oauth2
+                        .userInfoEndpoint(userinfo->userinfo
+                                .oidcUserService(customOIDCService))
+                        .defaultSuccessUrl("/api/users/profile",true));
+
 
         return httpSecurity.build();
     }
