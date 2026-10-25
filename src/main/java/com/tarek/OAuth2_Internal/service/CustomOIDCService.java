@@ -9,7 +9,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
-@Service
+
 public class CustomOIDCService implements OAuth2UserService<OidcUserRequest, OidcUser> {
 
 
@@ -31,7 +31,7 @@ public class CustomOIDCService implements OAuth2UserService<OidcUserRequest, Oid
 
         System.out.println(" i am invokedd");
 
-      userService.registerOrUpdate(provider, oidcUser);
+      //userService.registerOrUpdate(provider, oidcUser);
 
       return oidcUser;
     }
