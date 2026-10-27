@@ -5,6 +5,7 @@ import com.tarek.OAuth2_Internal.auth.OAuth2LoginSuccessHandler;
 import com.tarek.OAuth2_Internal.service.CustomOIDCService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -22,11 +23,13 @@ public class SecurityConfig {
                                                    ) throws Exception{
 
         httpSecurity
+                .csrf(c->c.disable())
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers(
                                 "/oauth2/**",
                                 "/login/**",
-                                "/error"
+                                "/error",
+                                "/api/auth/**"
 
                         ).permitAll()
                         .anyRequest().authenticated()
@@ -42,6 +45,8 @@ public class SecurityConfig {
 
         return httpSecurity.build();
     }
+
+
     @Bean
     public PasswordEncoder passwordEncoder()
     {

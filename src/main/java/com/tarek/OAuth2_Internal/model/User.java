@@ -34,6 +34,9 @@ public class User {
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
+
+    private String password;
+
     @Column(name = "avatar_url", length = 1000)
     private String avatarUrl;
 
