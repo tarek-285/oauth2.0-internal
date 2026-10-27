@@ -3,12 +3,15 @@ import com.tarek.OAuth2_Internal.model.User;
 import com.tarek.OAuth2_Internal.repository.UserIdentityRepository;
 import com.tarek.OAuth2_Internal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -53,22 +56,15 @@ public class IdentityResolutionService {
         if (StringUtils.hasText(email)) {
             String normalizedEmail = email.trim()
                     .toLowerCase(Locale.ROOT);
-
-            List<User> matches =
-                    userRepository.findAllByEmailIgnoreCase(
-                            normalizedEmail
-                    );
-
-            if (matches.size() > 1) {
+    Optional<User> applicationUser= userRepository.findAllByEmailIgnoreCase(email);
+            if (applicationUser.isPresent()) {
                 throw new IllegalStateException(
                         "Multiple users have this email. "
                                 + "Resolve duplicate accounts before linking."
                 );
             }
 
-            if (matches.size() == 1) {
-                user = matches.getFirst();
-            }
+      user =applicationUser.get();
         }
 
         // 3. No existing account: register a new user.
