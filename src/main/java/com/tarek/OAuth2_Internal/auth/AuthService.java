@@ -1,5 +1,6 @@
 package com.tarek.OAuth2_Internal.auth;
 
+import com.tarek.OAuth2_Internal.dto.ResendOtpRequest;
 import com.tarek.OAuth2_Internal.dto.UserRegistrationDto;
 import com.tarek.OAuth2_Internal.dto.VerifyEmailRequest;
 import com.tarek.OAuth2_Internal.model.User;
@@ -11,7 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -30,17 +33,25 @@ public class AuthService {
          this.userRepository=userRepository;
      }
 
-    @Transactional
     public void registerUser(UserRegistrationDto registrationDto)
     {
         String email = registrationDto.getEmail().trim().toLowerCase(Locale.ROOT);
-       if(userRepository.existsByEmailIgnoreCase(email))
-       {
+        List<User> usrList=userRepository.findAllByEmailIgnoreCase(email);
+        for(User user : usrList)
+        {
+            if(!user.isEmailVerified())
+            {
+                userRepository.delete(user);
+            }
+        }
+        if(!usrList.isEmpty())
+        {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Unable to register this email address"
+                    Map.of("message","Try another email").toString()
             );
-       }
+        }
+
        User user = new User();
        user.setDisplayName(registrationDto.getName());
        user.setEmail(registrationDto.getEmail());
@@ -50,13 +61,11 @@ public class AuthService {
     }
     public void verifyEmailOtp(VerifyEmailRequest emailRequest)
     {
-       boolean isSaved= emailOtpService.verifyOtp(emailRequest.email(),emailRequest.otp());
-       if(!isSaved)
-       {
-           throw new ResponseStatusException(
-                   HttpStatus.BAD_REQUEST,
-                   "Incorrect otp !"+emailRequest.otp()
-           );
-       }
+        emailOtpService.verifyOtp(emailRequest.email(),emailRequest.otp());
+
+    }
+
+    public void resendOtp(ResendOtpRequest resendOtpRequest) {
+        emailOtpService.resendOtp(resendOtpRequest.email());
     }
 }

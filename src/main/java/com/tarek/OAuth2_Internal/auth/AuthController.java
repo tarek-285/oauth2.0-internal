@@ -1,5 +1,6 @@
 package com.tarek.OAuth2_Internal.auth;
 
+import com.tarek.OAuth2_Internal.dto.ResendOtpRequest;
 import com.tarek.OAuth2_Internal.dto.UserRegistrationDto;
 import com.tarek.OAuth2_Internal.dto.VerifyEmailRequest;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,16 @@ public class AuthController {
         );
 
     }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<?>resendOtp(@RequestBody ResendOtpRequest resendOtpRequest)
+    {
+        authService.resendOtp(resendOtpRequest);
+        return ResponseEntity.ok().body(
+                Map.of("message", "Otp send successfully")
+        );
+    }
+
 
 
 }

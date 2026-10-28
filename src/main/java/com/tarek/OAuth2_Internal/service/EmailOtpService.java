@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 public class EmailOtpService {
@@ -46,74 +47,84 @@ public class EmailOtpService {
     }
 
     @Transactional
-    public void SendInitialOtp(User user)
+    public void SendInitialOtp(User newuser)
     {
-     otpHandler(user, false);
+
+     otpHandler(newuser, false);
     }
     @Transactional
     public void resendOtp(String email)
     {
-        User user = userRepository.findAllByEmailIgnoreCase(email).orElseThrow(
-                ()-> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Unable to process this request"
-                )
-        );
-        if(user.isEmailVerified())
+        var user =userRepository.findByEmailIgnoreCase(email).orElseThrow(()->
+                new ResponseStatusException(HttpStatus.BAD_REQUEST,
+        "Incorrect email"));
+        otpHandler(user,true);
+    }
+    @Transactional
+    public void verifyOtp(String email , String submittedOtp)
+    {
+
+        var user = userRepository.findByEmailIgnoreCase(email).orElseThrow(this::invalidOtp);
+//        if(user.isEmailVerified())
+//        {
+//            throw new ResponseStatusException(
+//                    HttpStatus.BAD_REQUEST,
+//                    "This email already verified"
+//            );
+//
+//        }
+
+        var lastOtp = emailOtpRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow(this::invalidOtp);
+
+        var record= emailOtpRepository.findByIdForUpdate(lastOtp.getId()).orElseThrow(this::invalidOtp);
+        record.incrementAttempts();
+
+        //EmailOtp record= lockedOtp;
+        Instant now= Instant.now();
+
+        if(record.getUsedAt()!=null)
         {
+
+            throw new
+                    ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                           "This verification code has already been used"
+            );
+
+        }
+        if(!now.isBefore(record.getExpiresAt()))
+        {
+
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Email is already varified"
+                    HttpStatus.BAD_REQUEST,"Verification code has expired. Please request a new one"
             );
         }
-        otpHandler(user,true);
-
-    }
-
-    @Transactional
-    public boolean verifyOtp(String email , String submittedOtp)
-    {
-        User user = userRepository.findAllByEmailIgnoreCase(email).orElseThrow(this::invalidOtp);
-        if(user.isEmailVerified())
+        if(record.getAttempt()>=5)
         {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "This email already verified"
+                  " Maximum verification attempts exceeded. Please request a new code"
             );
 
         }
-        var lastOtp = emailOtpRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId());
-        if(lastOtp.isEmpty())
-        {
-            return false;
-        }
-        var lockedOtp= emailOtpRepository.findByIdForUpdate(lastOtp.get().getId());
-        if(lockedOtp.isEmpty())
-        {
-            return false;
 
-        }
-        EmailOtp record= lockedOtp.get();
-        Instant now= Instant.now();
-        if(record.getUsedAt()!=null
-                || !now.isBefore(record.getExpiresAt())
-                || record.getAttempt()>=maxAttempts)
+
+        if(!passwordEncoder.matches(submittedOtp,record.getCodeHash()))
         {
-            return false;
-        }
-        if(!passwordEncoder.matches(record.getCodeHash(), submittedOtp))
-        {
-            record.incrementAttempts();
             emailOtpRepository.saveAndFlush(record);
-            return false;
+         throw invalidOtp();
         }
+
         record.markedUsed(now);
         user.setEmailVerified(true);
         userRepository.save(user);
         emailOtpRepository.save(record);
-        return true;
+
 
     }
+
+
 
     public void otpHandler(User user , boolean enforceCoolDown )
     {
@@ -131,9 +142,10 @@ public class EmailOtpService {
             }
 
         }
-        emailOtpRepository.deleteByUserId(user.getId());
+//        emailOtpRepository.deleteByUserId(user.getId());
         String otp = "%06d".formatted(secureRandom.nextInt(1_000_000));
-       EmailOtp newOtp= new EmailOtp(user,
+       EmailOtp newOtp= new EmailOtp(
+                user,
                 passwordEncoder.encode(otp),
                 now.plus(expirationMinutes, ChronoUnit.MINUTES),
                 now);
@@ -145,9 +157,10 @@ public class EmailOtpService {
 
     private ResponseStatusException invalidOtp()
     {
+        System.out.println("Invalid otp ");
         return new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Invalid or expired varification code"
+                "Invalid varification code"
         );
     }
 
