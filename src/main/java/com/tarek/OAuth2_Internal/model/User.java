@@ -37,7 +37,7 @@ public class User {
 
     private String password;
 
-    @Column(name = "avatar_url", length = 1000)
+    @Column(name = "avatar_url", length =5000)
     private String avatarUrl;
 
     @Column(nullable = false, length = 30)

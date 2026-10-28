@@ -10,12 +10,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -48,10 +50,9 @@ public class OAuth2LoginSuccessHandler
         String subject = authUtils.getSubject(attributes, oauthUser);
         String email = authUtils.findKeyValue(attributes, "email");
         String name = authUtils.extractNameByProvider(provider, attributes);
-        String picture = null;
-                //authUtils.extractProfilePicture(attributes);
+        String picture = authUtils.extractProfilePicture(attributes);
         boolean providerEmailVerified = authUtils.isEmailVerified(attributes, oauthUser);
-
+      try{
         User user = identityService.resolve(
                 provider,
                 subject,
@@ -87,8 +88,34 @@ public class OAuth2LoginSuccessHandler
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Cache-Control", "no-store");
         response.setHeader("Pragma", "no-cache");
-
         objectMapper.writeValue(response.getWriter(), authResponse);
     }
+      catch (ResponseStatusException ex) {
+          writeErrorResponse(response, HttpStatus.valueOf(ex.getStatusCode().value()), ex.getReason());
+      } catch (IllegalArgumentException ex) {
+          writeErrorResponse(response, HttpStatus.BAD_REQUEST, ex.getMessage());
+      } catch (Exception ex) {
+          writeErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected authentication error occurred");
+      }
+    }
 
-}
+    private void writeErrorResponse(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        Map<String, Object> errorDetails = Map.of(
+                "error", status.getReasonPhrase(),
+                "message", message != null ? message : "Authentication failed",
+
+                "status", status.value()
+        );
+
+        objectMapper.writeValue(response.getWriter(), errorDetails);
+    }
+
+
+
+
+    }
+

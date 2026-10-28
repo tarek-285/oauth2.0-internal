@@ -49,6 +49,7 @@ public class EmailOtp {
     public void incrementAttempts()
     {
         this.attempt++;
+
     }
 
 }
