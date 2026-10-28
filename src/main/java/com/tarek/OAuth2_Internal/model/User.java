@@ -52,6 +52,12 @@ public class User {
             orphanRemoval = true
     )
     private List<UserIdentity> identities = new ArrayList<>();
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<EmailOtp> emailOtps=new ArrayList<>();
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

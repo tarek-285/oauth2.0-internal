@@ -35,7 +35,6 @@ public class IdentityResolutionService {
             );
         }
 
-        // 1. First check the exact external identity.
         var existingIdentity =
                 identityRepository.findByProviderAndProviderSubject(
                         provider, providerSubject
@@ -45,29 +44,36 @@ public class IdentityResolutionService {
         if (existingIdentity.isPresent()) {
             User user = existingIdentity.get().getUser();
 
-            System.out.println(user.toString());
             return user;
         }
 
-        // 2. Requested behavior: match accounts by email,
-        // even when the provider has not verified that email.
+
         User user = null;
 
         if (StringUtils.hasText(email)) {
             String normalizedEmail = email.trim()
                     .toLowerCase(Locale.ROOT);
-    Optional<User> applicationUser= userRepository.findAllByEmailIgnoreCase(email);
-            if (applicationUser.isPresent()) {
-                throw new IllegalStateException(
-                        "Multiple users have this email. "
-                                + "Resolve duplicate accounts before linking."
-                );
+    var applicationUser= userRepository.findAllByEmailIgnoreCase(email);
+       for(User isPresent: applicationUser)
+            {
+                if(!isPresent.isEmailVerified())
+                {
+
+                    userRepository.delete(isPresent);
+
+                }else {
+                    user = isPresent;
+                }
             }
 
-      user =applicationUser.get();
+          userRepository.flush();
+
+       
+
+
         }
 
-        // 3. No existing account: register a new user.
+
         if (user == null) {
             user = new User();
             user.setDisplayName(name);
@@ -78,8 +84,8 @@ public class IdentityResolutionService {
             );
             user.setAvatarUrl(picture);
 
-            // Do not claim the app verified the email.
-            user.setEmailVerified(false);
+
+            user.setEmailVerified(providerEmailVerified);
             user.setRole("USER");
             user.setStatus("ACTIVE");
 
