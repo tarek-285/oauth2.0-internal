@@ -1,6 +1,7 @@
 package com.tarek.OAuth2_Internal.service;
 
 
+import com.tarek.OAuth2_Internal.email.AttemptsOtp;
 import com.tarek.OAuth2_Internal.email.EmailService;
 import com.tarek.OAuth2_Internal.email.SmptEmailService;
 import com.tarek.OAuth2_Internal.model.EmailOtp;
@@ -27,6 +28,7 @@ public class EmailOtpService {
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final SecureRandom secureRandom= new SecureRandom();
+    private final AttemptsOtp attemptsOtp;
 
     @Value("${app.otp.expiration-minutes:5}")
     long  expirationMinutes;
@@ -38,12 +40,15 @@ public class EmailOtpService {
     public EmailOtpService(EmailService emailService,
                            EmailOtpRepository emailOtpRepository,
                            PasswordEncoder passwordEncoder,
-                           UserRepository userRepository)
+                           UserRepository userRepository,
+                           AttemptsOtp attemptsOtp
+    )
     {
         this.emailService=emailService;
         this.emailOtpRepository=emailOtpRepository;
         this.passwordEncoder=passwordEncoder;
         this.userRepository=userRepository;
+        this.attemptsOtp=attemptsOtp;
     }
 
     @Transactional
@@ -65,21 +70,10 @@ public class EmailOtpService {
     {
 
         var user = userRepository.findByEmailIgnoreCase(email).orElseThrow(this::invalidOtp);
-//        if(user.isEmailVerified())
-//        {
-//            throw new ResponseStatusException(
-//                    HttpStatus.BAD_REQUEST,
-//                    "This email already verified"
-//            );
-//
-//        }
 
-        var lastOtp = emailOtpRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow(this::invalidOtp);
+        var record = emailOtpRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow(this::invalidOtp);
 
-        var record= emailOtpRepository.findByIdForUpdate(lastOtp.getId()).orElseThrow(this::invalidOtp);
-        record.incrementAttempts();
 
-        //EmailOtp record= lockedOtp;
         Instant now= Instant.now();
 
         if(record.getUsedAt()!=null)
@@ -112,12 +106,22 @@ public class EmailOtpService {
 
         if(!passwordEncoder.matches(submittedOtp,record.getCodeHash()))
         {
-            emailOtpRepository.saveAndFlush(record);
+
+           int rowNumber = attemptsOtp.attemptsIncrement(record.getId() ,maxAttempts);
+            if(rowNumber==0)
+            {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Maximum verification attempts exceeded. Please request a new code"
+                );
+            }
          throw invalidOtp();
         }
 
+        attemptsOtp.attemptsIncrement(record.getId() ,maxAttempts);
         record.markedUsed(now);
         user.setEmailVerified(true);
+
         userRepository.save(user);
         emailOtpRepository.save(record);
 

@@ -37,18 +37,22 @@ public class AuthService {
     {
         String email = registrationDto.getEmail().trim().toLowerCase(Locale.ROOT);
         List<User> usrList=userRepository.findAllByEmailIgnoreCase(email);
+        User verifiedUser =null;
         for(User user : usrList)
         {
             if(!user.isEmailVerified())
             {
                 userRepository.delete(user);
+            }else
+            {
+                verifiedUser=user;
             }
         }
-        if(!usrList.isEmpty())
+        if(verifiedUser!=null)
         {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    Map.of("message","Try another email").toString()
+                    "Try another email "
             );
         }
 

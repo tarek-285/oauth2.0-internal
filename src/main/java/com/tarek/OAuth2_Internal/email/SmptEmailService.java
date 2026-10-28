@@ -23,10 +23,10 @@ public class SmptEmailService implements EmailService{
         simpleMailMessage.setFrom(from);
         simpleMailMessage.setSubject("Verify your email address");
         simpleMailMessage.setText("""
-                Hello Chudir Bhai,
+                Hello,
                 your email verification code is: %s
                 This code expires in 5 minutes.
-                If you did not request this, you can ignore bokachoda 
+                If you did not request this, you can ignore this
                 """.formatted(code));
       try {
           javaMailSender.send(simpleMailMessage);

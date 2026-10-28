@@ -3,6 +3,7 @@ import com.tarek.OAuth2_Internal.model.User;
 import com.tarek.OAuth2_Internal.repository.UserIdentityRepository;
 import com.tarek.OAuth2_Internal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IdentityResolutionService {
@@ -29,11 +30,19 @@ public class IdentityResolutionService {
             String picture,
             boolean providerEmailVerified
     ) {
+
+
+
         if (!StringUtils.hasText(providerSubject)) {
             throw new IllegalArgumentException(
                     "Provider subject is missing"
             );
         }
+
+        //UserIdentity present return the user
+        //No userIdentity
+        //verified useridentity and verified application account
+        //
 
         var existingIdentity =
                 identityRepository.findByProviderAndProviderSubject(
@@ -43,7 +52,25 @@ public class IdentityResolutionService {
 
         if (existingIdentity.isPresent()) {
             User user = existingIdentity.get().getUser();
+           if(user.isEmailVerified() && !providerEmailVerified)
+           {
+               throw new ResponseStatusException(
+                       HttpStatus.CONFLICT,
+                       "Account is verified, but incoming provider email is unverified."
 
+
+               );
+
+           }
+           //update property
+            user.setEmail(
+                    StringUtils.hasText(email)
+                            ? email.trim().toLowerCase(Locale.ROOT)
+                            : provider+"_"+providerSubject
+            );
+            user.setDisplayName(name);
+            user.setAvatarUrl(picture);
+            user.setEmailVerified(providerEmailVerified);
             return user;
         }
 
@@ -51,8 +78,9 @@ public class IdentityResolutionService {
         User user = null;
 
         if (StringUtils.hasText(email)) {
-            String normalizedEmail = email.trim()
+            email = email.trim()
                     .toLowerCase(Locale.ROOT);
+        }
     var applicationUser= userRepository.findAllByEmailIgnoreCase(email);
        for(User isPresent: applicationUser)
             {
@@ -68,10 +96,19 @@ public class IdentityResolutionService {
 
           userRepository.flush();
 
-       
+       //one verified user already exit ,
+       //retun error for unverified provider cannot create a accout with this email
+         if(user!= null && !providerEmailVerified)
+         {
+             throw new ResponseStatusException(
+                     HttpStatus.CONFLICT,
+                     "An account with this email already exists. Verify your email with " + provider +" before linking."
+             );
+         }
 
 
-        }
+
+
 
 
         if (user == null) {
@@ -80,7 +117,7 @@ public class IdentityResolutionService {
             user.setEmail(
                     StringUtils.hasText(email)
                             ? email.trim().toLowerCase(Locale.ROOT)
-                            : null
+                            : provider+"_"+providerSubject
             );
             user.setAvatarUrl(picture);
 
