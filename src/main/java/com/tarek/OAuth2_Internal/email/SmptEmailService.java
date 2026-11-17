@@ -3,6 +3,7 @@ package com.tarek.OAuth2_Internal.email;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,6 +18,8 @@ public class SmptEmailService implements EmailService{
         this.javaMailSender=javaMailSender;
     }
     @Override
+
+    @Async
     public void sendOtp(String to, String code) {
         SimpleMailMessage simpleMailMessage=new SimpleMailMessage();
         simpleMailMessage.setTo(to);

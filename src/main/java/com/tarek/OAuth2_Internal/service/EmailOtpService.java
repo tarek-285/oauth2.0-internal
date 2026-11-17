@@ -69,7 +69,10 @@ public class EmailOtpService {
     public void verifyOtp(String email , String submittedOtp)
     {
 
-        var user = userRepository.findByEmailIgnoreCase(email).orElseThrow(this::invalidOtp);
+        var user = userRepository.findByEmailIgnoreCase(email).orElseThrow(
+                ()-> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid email for this otp")
+        );
 
         var record = emailOtpRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow(this::invalidOtp);
 
@@ -90,7 +93,8 @@ public class EmailOtpService {
         {
 
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,"Verification code has expired. Please request a new one"
+                    HttpStatus.BAD_REQUEST,"Verification code has expired for "+email+
+                    ". Please request a new one"
             );
         }
         if(record.getAttempt()>=5)
